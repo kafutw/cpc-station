@@ -1,0 +1,16 @@
+{
+  "name": "中油直營站快找",
+  "short_name": "直營站快找",
+  "description": "打開就找到離你最近的中油直營加油站，看現在有沒有開，一鍵導航。",
+  "lang": "zh-Hant-TW",
+  "start_url": "./?src=homescreen",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f5f8f8",
+  "theme_color": "#2f6f77",
+  "icons": [
+    {"src": "icon-192.png", "sizes": "192x192", "type": "image/png"},
+    {"src": "icon-512.png", "sizes": "512x512", "type": "image/png"},
+    {"src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}
+  ]
+}

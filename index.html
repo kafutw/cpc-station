@@ -1,0 +1,513 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>中油直營站快找</title>
+<meta name="description" content="打開就找到離你最近的中油直營加油站：用定位或輸入鄉鎮、地址，看現在有沒有開、有沒有 98 和柴油，一鍵 Google 地圖導航。可以加到手機主畫面。">
+<meta name="theme-color" content="#2f6f77">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="直營站快找">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+:root{
+  --brand:#2f6f77;--brand-dk:#1f4f55;--brand-bg:#e8f2f2;--ink:#1d2a2c;--muted:#5d6d70;--line:#d8e2e3;
+  --bg:#f5f8f8;--card:#fff;--ok:#2e7d4f;--ok-bg:#e5f4ea;--warn:#a86412;--warn-bg:#fdf1e0;--off:#8a9496;--off-bg:#eef1f1;
+  --accent:#d0743c;--r:14px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 -apple-system,BlinkMacSystemFont,"PingFang TC","Noto Sans TC","Microsoft JhengHei",sans-serif;-webkit-text-size-adjust:100%}
+button,input{font:inherit;color:inherit}
+a{color:var(--brand-dk)}
+svg.i{width:1.15em;height:1.15em;flex:none;vertical-align:-.2em}
+.wrap{max-width:1180px;margin:0 auto;padding:0 16px}
+header{background:var(--brand);color:#fff;padding:calc(10px + env(safe-area-inset-top)) 0 10px}
+header .wrap{display:flex;align-items:center;gap:10px}
+header img{width:34px;height:34px;border-radius:9px;background:#fff2}
+header h1{font-size:1.12rem;margin:0;line-height:1.2;flex:1}
+header h1 small{display:block;font-size:.74rem;font-weight:400;opacity:.85}
+#install{display:none;border:0;background:#fff;color:var(--brand-dk);font-weight:700;border-radius:999px;padding:7px 14px;font-size:.88rem;cursor:pointer;white-space:nowrap}
+.layout{display:grid;gap:14px;padding-top:14px;padding-bottom:20px}
+@media(min-width:900px){
+  .layout{grid-template-columns:420px 1fr;align-items:start}
+  #mapbox{position:sticky;top:14px;order:2}
+  #map{height:calc(100vh - 110px)!important;min-height:520px}
+  .panel{order:1}
+}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r)}
+.finder{padding:14px}
+#gps{width:100%;border:0;border-radius:12px;background:var(--brand);color:#fff;font-weight:700;font-size:1.08rem;padding:15px 12px;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer}
+#gps:active{background:var(--brand-dk)}
+#gps[disabled]{opacity:.7}
+.or{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:.85rem;margin:12px 0}
+.or:before,.or:after{content:"";flex:1;height:1px;background:var(--line)}
+.sbox{position:relative}
+#q{width:100%;border:1.5px solid var(--line);border-radius:12px;padding:13px 44px 13px 14px;font-size:1rem;background:#fff;outline:none}
+#q:focus{border-color:var(--brand)}
+#qgo{position:absolute;right:6px;top:50%;transform:translateY(-50%);border:0;background:var(--brand-bg);color:var(--brand-dk);border-radius:9px;width:36px;height:36px;display:grid;place-items:center;cursor:pointer}
+#sug{list-style:none;margin:6px 0 0;padding:0;border:1px solid var(--line);border-radius:12px;background:#fff;overflow:hidden;display:none}
+#sug li{padding:11px 14px;border-top:1px solid var(--line);cursor:pointer;display:flex;justify-content:space-between;gap:10px}
+#sug li:first-child{border-top:0}
+#sug li[aria-selected="true"],#sug li:hover{background:var(--brand-bg)}
+#sug li span{color:var(--muted);font-size:.85rem;white-space:nowrap}
+.hint{font-size:.82rem;color:var(--muted);margin:8px 2px 0}
+#msg{display:none;margin-top:10px;padding:10px 12px;border-radius:10px;background:var(--warn-bg);color:var(--warn);font-size:.9rem}
+.chips{display:flex;flex-wrap:wrap;gap:7px;margin:12px 0 0}
+.chip{border:1.5px solid var(--line);background:#fff;border-radius:999px;padding:6px 12px;font-size:.88rem;cursor:pointer;display:flex;align-items:center;gap:5px}
+.chip[aria-pressed="true"]{border-color:var(--brand);background:var(--brand-bg);color:var(--brand-dk);font-weight:700}
+#where{margin:14px 2px 8px;font-size:.9rem;color:var(--muted);display:none}
+#where b{color:var(--ink)}
+.tomap{margin-left:6px;font-weight:700;white-space:nowrap}
+@media(min-width:900px){.tomap{display:none}}
+#mapbox{overflow:hidden}
+#map{height:46vh;min-height:280px;max-height:520px;background:#dfe7e8}
+.maptool{display:flex;gap:8px;padding:8px;border-top:1px solid var(--line);flex-wrap:wrap}
+.maptool button{border:1px solid var(--line);background:#fff;border-radius:9px;padding:6px 10px;font-size:.84rem;cursor:pointer;display:flex;align-items:center;gap:5px}
+.maptool button[aria-pressed="true"]{border-color:var(--accent);color:var(--accent);font-weight:700}
+#list{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+.st{padding:13px 14px}
+.st .top{display:flex;gap:10px;align-items:flex-start}
+.rank{flex:none;width:28px;height:28px;border-radius:50%;background:var(--brand);color:#fff;font-weight:700;display:grid;place-items:center;font-size:.9rem;margin-top:1px}
+.st.closed .rank{background:var(--off)}
+.st h3{margin:0;font-size:1.06rem;line-height:1.35}
+.st .addr{font-size:.86rem;color:var(--muted);margin-top:2px}
+.dist{margin-left:auto;text-align:right;white-space:nowrap;font-weight:700;font-size:1.02rem}
+.dist small{display:block;font-weight:400;font-size:.72rem;color:var(--muted)}
+.tags{display:flex;flex-wrap:wrap;gap:5px;margin:9px 0 0 38px}
+.tag{font-size:.78rem;padding:2px 8px;border-radius:6px;background:var(--off-bg);color:var(--muted)}
+.tag.ok{background:var(--ok-bg);color:var(--ok);font-weight:700}
+.tag.warn{background:var(--warn-bg);color:var(--warn);font-weight:700}
+.tag.off{background:#f3e3e0;color:#9a3b2c;font-weight:700}
+.tag.fuel{background:var(--brand-bg);color:var(--brand-dk)}
+.acts{display:flex;gap:8px;margin:11px 0 0 38px}
+.acts a,.acts button{flex:1;text-align:center;text-decoration:none;border-radius:10px;padding:9px 6px;font-size:.92rem;font-weight:700;display:flex;align-items:center;justify-content:center;gap:6px;cursor:pointer}
+.go{background:var(--brand);color:#fff!important}
+.ghost{background:#fff;border:1.5px solid var(--line);color:var(--ink)!important}
+.more{display:none;margin:10px 0 0 38px;font-size:.86rem;color:var(--muted);border-top:1px dashed var(--line);padding-top:9px}
+.more div{margin:2px 0}
+.st.open-more .more{display:block}
+#moreBtn{display:none;width:100%;margin-top:10px;border:1.5px solid var(--line);background:#fff;border-radius:12px;padding:11px;cursor:pointer;font-weight:700;color:var(--brand-dk)}
+.hidden-note{font-size:.84rem;color:var(--muted);margin:10px 2px 0}
+.empty{padding:22px 16px;text-align:center;color:var(--muted)}
+.empty b{display:block;color:var(--ink);font-size:1.02rem;margin-bottom:4px}
+/* 全部列表 */
+#all{margin-top:18px}
+#all h2{font-size:1.05rem;margin:0 2px 8px}
+#all details{background:#fff;border:1px solid var(--line);border-radius:12px;margin-bottom:8px}
+#all summary{padding:11px 14px;cursor:pointer;font-weight:700;display:flex;justify-content:space-between}
+#all summary span{color:var(--muted);font-weight:400;font-size:.88rem}
+#all .town{padding:4px 14px 10px}
+#all .town h4{margin:10px 0 4px;font-size:.92rem;color:var(--brand-dk)}
+#all .row{display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-top:1px solid var(--off-bg);font-size:.9rem}
+#all .row a{white-space:nowrap;font-size:.84rem}
+#all .row .x{color:var(--muted);font-size:.8rem}
+footer{font-size:.8rem;color:var(--muted);padding:6px 0 calc(24px + env(safe-area-inset-bottom))}
+footer p{margin:4px 0}
+/* 加到主畫面說明 */
+#ios{display:none;position:fixed;left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom));background:#1f2b2d;color:#fff;border-radius:14px;padding:14px 16px;z-index:2000;font-size:.92rem;box-shadow:0 8px 30px #0005}
+#ios b{color:#ffd9b8}
+#ios button{position:absolute;right:8px;top:6px;border:0;background:none;color:#fff;font-size:1.3rem;cursor:pointer}
+.embed-bar{display:none;background:var(--brand-bg);border:1px solid #c9dfe0;border-radius:12px;padding:10px 12px;font-size:.9rem;margin-top:12px}
+.embed-bar a{font-weight:700}
+.you{width:16px;height:16px;border-radius:50%;background:#1a73e8;border:3px solid #fff;box-shadow:0 0 0 2px #1a73e855}
+.pin{width:28px;height:28px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);background:var(--brand);border:2px solid #fff;box-shadow:0 2px 6px #0004;display:grid;place-items:center}
+.pin b{transform:rotate(45deg);color:#fff;font-size:.8rem}
+.pin.closed{background:var(--off)}
+.leaflet-popup-content{font:14px/1.5 -apple-system,"PingFang TC","Noto Sans TC",sans-serif;margin:10px 12px}
+.leaflet-popup-content b{font-size:15px}
+.embedded header,.embedded #all{display:none}
+.embedded #map{height:420px!important;min-height:0;max-height:none}
+@media(min-width:900px){.embedded #map{height:640px!important}}
+.embedded footer p:not(:first-child){display:none}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-loc" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="6.5" fill="none" stroke="currentColor" stroke-width="2.2"/><circle cx="12" cy="12" r="2.5" fill="currentColor"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M15.5 15.5 21 21" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></symbol>
+  <symbol id="i-nav" viewBox="0 0 24 24"><path fill="currentColor" d="M21 3 3 10.5l7.2 2.3L12.5 20z"/></symbol>
+  <symbol id="i-tel" viewBox="0 0 24 24"><path fill="currentColor" d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.25 11.4 11.4 0 0 0 3.6.57 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.45.57 3.57a1 1 0 0 1-.25 1z"/></symbol>
+  <symbol id="i-pin" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2a7 7 0 0 0-7 7c0 5.2 7 13 7 13s7-7.8 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z"/></symbol>
+  <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 11v6M12 7.5v.5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></symbol>
+</svg>
+
+<header>
+  <div class="wrap">
+    <img src="icon-192.png" alt="">
+    <h1>中油直營站快找<small>打開就找最近的直營加油站</small></h1>
+    <button id="install" type="button">加到主畫面</button>
+  </div>
+</header>
+
+<main class="wrap layout">
+  <section class="panel">
+    <div class="card finder">
+      <button id="gps" type="button"><svg class="i"><use href="#i-loc"/></svg><span>用我現在的位置找</span></button>
+      <div class="or">或是直接輸入</div>
+      <div class="sbox">
+        <input id="q" type="search" inputmode="search" autocomplete="off" enterkeyhint="search"
+               placeholder="鄉鎮、地址或站名，例如：新竹新埔" aria-label="輸入鄉鎮、地址或站名">
+        <button id="qgo" type="button" aria-label="搜尋"><svg class="i"><use href="#i-search"/></svg></button>
+      </div>
+      <ul id="sug" role="listbox"></ul>
+      <p class="hint">也可以按地圖下方的「在地圖上點位置」，直接點你要去的地方。</p>
+      <div id="msg" role="status"></div>
+      <div class="chips" id="chips"></div>
+      <div class="embed-bar" id="embedBar">
+        想加到手機主畫面的話，<a id="openFull" href="./" target="_blank" rel="noopener">點這裡開啟 App 版</a>，再照畫面提示加入就可以了。
+      </div>
+    </div>
+    <div id="where"></div>
+    <ol id="list" aria-live="polite"></ol>
+    <button id="moreBtn" type="button">再多看幾間</button>
+    <p class="hidden-note" id="hiddenNote"></p>
+  </section>
+
+  <section id="mapbox" class="card">
+    <div id="map" role="region" aria-label="中油直營站地圖"></div>
+    <div class="maptool">
+      <button id="pickBtn" type="button" aria-pressed="false"><svg class="i"><use href="#i-pin"/></svg>在地圖上點位置</button>
+      <button id="fitBtn" type="button">看全台</button>
+    </div>
+  </section>
+</main>
+
+<div class="wrap">
+  <section id="all">
+    <h2>全台中油直營站列表</h2>
+    <div id="allList"></div>
+  </section>
+  <footer>
+    <p>資料來源：<a href="https://data.gov.tw/dataset/6065" target="_blank" rel="noopener">台灣中油公司加油站服務資訊</a>（政府資料開放平臺，依政府資料開放授權條款第 1 版使用），資料更新日 <span id="upd"></span>。</p>
+    <p>本工具由卡夫卡的分享日記整理製作，不是台灣中油官方服務。營業時間與油品以現場為準，距離是直線距離。</p>
+    <p>地圖：<a href="https://maps.nlsc.gov.tw/" target="_blank" rel="noopener">內政部國土測繪中心</a>、© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> 貢獻者。</p>
+  </footer>
+</div>
+
+<div id="ios" role="dialog" aria-label="加到主畫面">
+  <button type="button" aria-label="關閉">×</button>
+  加到主畫面的方法：用 Safari 開這一頁，按下方的<b>分享</b>按鈕，往下滑選<b>加入主畫面</b>，以後點圖示就能直接打開喔。
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+"use strict";
+const $=id=>document.getElementById(id);
+const N=s=>(s||"").replace(/臺/g,"台").replace(/\s+/g,"");
+const EMBED=window.self!==window.top;
+const STANDALONE=matchMedia("(display-mode: standalone)").matches||navigator.standalone===true;
+const store={get(k,d){try{const v=localStorage.getItem("cpc-"+k);return v==null?d:JSON.parse(v)}catch(e){return d}},
+             set(k,v){try{localStorage.setItem("cpc-"+k,JSON.stringify(v))}catch(e){}}};
+if(EMBED) document.body.classList.add("embedded");
+
+const STEP=EMBED?5:10;
+let S=[],T=[],here=null,shown=STEP,picking=false;
+
+/* ---------- 篩選 ---------- */
+const FILTERS=[
+  {k:"now",lab:"現在有開",fn:s=>openState(s).open},
+  {k:"h24",lab:"24 小時",fn:s=>is24(s.h)},
+  {k:"98",lab:"有 98",fn:s=>s.f.includes("98")},
+  {k:"diesel",lab:"有柴油",fn:s=>s.f.includes("柴油")},
+  {k:"self",lab:"刷卡自助",fn:s=>s.self},
+  {k:"wash",lab:"可以洗車",fn:s=>!!s.wash},
+];
+let on=new Set(store.get("filters",["now"]));
+function drawChips(){
+  $("chips").innerHTML=FILTERS.map(f=>`<button class="chip" type="button" data-k="${f.k}" aria-pressed="${on.has(f.k)}">${on.has(f.k)?"✓ ":""}${f.lab}</button>`).join("");
+}
+$("chips").addEventListener("click",e=>{
+  const b=e.target.closest(".chip"); if(!b) return;
+  const k=b.dataset.k; on.has(k)?on.delete(k):on.add(k); store.set("filters",[...on]);
+  shown=STEP; drawChips(); render();
+});
+
+/* ---------- 時間（一律用台灣時間判斷） ---------- */
+const toMin=t=>{const [h,m]=t.split(":").map(Number);return h*60+m};
+const is24=h=>{const [a,b]=h.split("-");return toMin(a)===0&&toMin(b)>=1439};
+function nowTW(){
+  const p=new Intl.DateTimeFormat("en-GB",{timeZone:"Asia/Taipei",hour:"2-digit",minute:"2-digit",hourCycle:"h23"}).formatToParts(new Date());
+  return (+p.find(x=>x.type==="hour").value)*60+(+p.find(x=>x.type==="minute").value);
+}
+function openState(s){
+  if(!s.open) return {open:false,cls:"off",txt:"官方資料標示目前沒有營業"};
+  if(is24(s.h)) return {open:true,cls:"ok",txt:"24 小時營業"};
+  const [a,b]=s.h.split("-").map(toMin), n=nowTW();
+  const isOpen=b>a?(n>=a&&n<b):(n>=a||n<b);
+  const [ha,hb]=s.h.split("-");
+  if(isOpen){
+    const left=(b-n+1440)%1440;
+    return left<=60?{open:true,cls:"warn",txt:`營業中・${hb} 就打烊了`}:{open:true,cls:"ok",txt:`營業中・開到 ${hb}`};
+  }
+  return {open:false,cls:"off",txt:`現在沒開・${ha} 開始營業`};
+}
+
+/* ---------- 距離 ---------- */
+function km(a,b){
+  const R=6371,r=Math.PI/180,dLa=(b.lat-a.lat)*r,dLo=(b.lng-a.lng)*r;
+  const x=Math.sin(dLa/2)**2+Math.cos(a.lat*r)*Math.cos(b.lat*r)*Math.sin(dLo/2)**2;
+  return 2*R*Math.asin(Math.sqrt(x));
+}
+const fmtKm=d=>d<1?`${Math.round(d*1000/10)*10} 公尺`:`${d<10?d.toFixed(1):Math.round(d)} 公里`;
+const navUrl=s=>`https://www.google.com/maps/dir/?api=1&destination=${s.lat},${s.lng}&travelmode=driving`;
+const mapUrl=s=>`https://www.google.com/maps/search/?api=1&query=${s.lat},${s.lng}`;
+const esc=t=>String(t).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+/* ---------- 地圖 ---------- */
+const map=L.map("map",{zoomControl:true,attributionControl:true,scrollWheelZoom:!EMBED,
+  dragging:!(EMBED&&L.Browser.mobile),tap:false}).setView([23.7,120.95],7);
+L.tileLayer("https://wmts.nlsc.gov.tw/wmts/EMAP6_OPENDATA/default/GoogleMapsCompatible/{z}/{y}/{x}",
+  {maxZoom:15,attribution:"國土測繪中心"}).addTo(map);
+L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+  {minZoom:16,maxZoom:19,attribution:"© OpenStreetMap"}).addTo(map);
+map.attributionControl.setPrefix(false);
+const dots=L.layerGroup().addTo(map), topL=L.layerGroup().addTo(map);
+let youMk=null;
+function popup(s){
+  const st=openState(s);
+  return `<b>中油${esc(s.n)}</b><br>${esc(s.c+s.t+s.a)}<br><span style="color:${st.open?"#2e7d4f":"#9a3b2c"}">${st.txt}</span><br>
+  <a href="${navUrl(s)}" target="_blank" rel="noopener">Google 導航</a>${s.tel?`　<a href="tel:${s.tel.replace(/[^\d]/g,"")}">打電話</a>`:""}`;
+}
+function drawDots(){
+  dots.clearLayers();
+  for(const s of S){
+    const o=openState(s).open;
+    L.circleMarker([s.lat,s.lng],{radius:5,weight:1.5,color:"#fff",fillColor:o?"#2f6f77":"#9aa4a6",fillOpacity:.95})
+      .bindPopup(()=>popup(s)).addTo(dots);
+  }
+}
+map.on("click",e=>{
+  if(!picking) return;
+  setPick(false);
+  setHere({lat:e.latlng.lat,lng:e.latlng.lng},"你在地圖上點的位置",false);
+});
+function setPick(v){picking=v;$("pickBtn").setAttribute("aria-pressed",v);
+  $("pickBtn").lastChild.textContent=v?"點一下地圖上的位置":"在地圖上點位置";
+  map.getContainer().style.cursor=v?"crosshair":"";
+  if(v&&EMBED&&L.Browser.mobile) map.dragging.enable();}
+$("pickBtn").onclick=()=>setPick(!picking);
+$("fitBtn").onclick=()=>map.setView([23.7,120.95],7);
+
+/* ---------- 結果 ---------- */
+function msg(t){$("msg").style.display=t?"block":"none";$("msg").textContent=t||""}
+function setHere(p,label,precise){
+  here={...p,label,precise}; shown=STEP;
+  if(youMk) map.removeLayer(youMk);
+  youMk=L.marker([p.lat,p.lng],{icon:L.divIcon({className:"",html:'<div class="you"></div>',iconSize:[22,22],iconAnchor:[11,11]}),zIndexOffset:-100}).addTo(map);
+  render(true);
+}
+function card(s,i){
+  const st=openState(s), d=km(here,s);
+  const fuel=s.f.map(f=>`<span class="tag fuel">${f}</span>`).join("");
+  const extra=[s.self?"刷卡自助":"",s.hw?"國道":"",s.wash?"洗車："+s.wash:""].filter(Boolean).map(t=>`<span class="tag">${esc(t)}</span>`).join("");
+  return `<li class="card st ${st.open?"":"closed"}" data-id="${s.id}">
+    <div class="top"><span class="rank">${i+1}</span>
+      <div><h3>中油${esc(s.n)}</h3><div class="addr">${esc(s.c+s.t+s.a)}</div></div>
+      <div class="dist">${fmtKm(d)}<small>直線距離</small></div></div>
+    <div class="tags"><span class="tag ${st.cls}">${st.txt}</span>${fuel}${extra}</div>
+    <div class="acts">
+      <a class="go" href="${navUrl(s)}" target="_blank" rel="noopener"><svg class="i"><use href="#i-nav"/></svg>導航</a>
+      ${s.tel?`<a class="ghost" href="tel:${s.tel.replace(/[^\d]/g,"")}"><svg class="i"><use href="#i-tel"/></svg>電話</a>`:""}
+      <button class="ghost" type="button" data-more><svg class="i"><use href="#i-info"/></svg>詳細</button>
+    </div>
+    <div class="more">
+      <div>營業時間：${esc(s.h)}</div>
+      ${s.tel?`<div>電話：${esc(s.tel)}</div>`:""}
+      ${s.pay.length?`<div>可以用：${esc(s.pay.join("、"))}</div>`:""}
+      ${s.dself?`<div>有自助柴油</div>`:""}
+      ${s.etag?`<div>eTag 申裝儲值：${esc(s.etag)}</div>`:""}
+      ${s.mt?`<div>保養間：${esc(s.mt)}</div>`:""}
+      <div>座標：${s.lat}, ${s.lng}　<a href="${mapUrl(s)}" target="_blank" rel="noopener">在 Google 地圖看</a></div>
+    </div></li>`;
+}
+function render(fit){
+  if(!here){ $("list").innerHTML=""; $("where").style.display="none"; $("moreBtn").style.display="none"; $("hiddenNote").textContent=""; postH(); return; }
+  const act=FILTERS.filter(f=>on.has(f.k));
+  const all=S.map(s=>({s,d:km(here,s)})).sort((a,b)=>a.d-b.d);
+  const ok=all.filter(x=>act.every(f=>f.fn(x.s)));
+  const list=ok.slice(0,shown);
+  $("where").style.display="block";
+  $("where").innerHTML=`從 <b>${esc(here.label)}</b>${here.precise==="road"?"（照路名估算，門牌查不到）":here.precise?"":"（以這一區的中心估算）"}出發，照直線距離由近到遠排。<a class="tomap" href="#mapbox">看地圖</a>`;
+  if(!list.length){
+    $("list").innerHTML=`<li class="card empty"><b>附近沒有符合條件的直營站</b>可以把上面的條件取消一兩個，範圍就會變大。</li>`;
+  }else{
+    $("list").innerHTML=list.map((x,i)=>card(x.s,i)).join("");
+  }
+  $("moreBtn").style.display=ok.length>shown?"block":"none";
+  const near=all.slice(0,shown).filter(x=>!ok.includes(x)).length;
+  $("hiddenNote").textContent=near&&on.size?`離你最近的 ${shown} 間裡，有 ${near} 間因為上面的條件先藏起來了。`:"";
+  topL.clearLayers();
+  list.forEach((x,i)=>{
+    const o=openState(x.s).open;
+    L.marker([x.s.lat,x.s.lng],{icon:L.divIcon({className:"",html:`<div class="pin ${o?"":"closed"}"><b>${i+1}</b></div>`,iconSize:[28,28],iconAnchor:[14,28],popupAnchor:[0,-26]}),zIndexOffset:500})
+      .bindPopup(()=>popup(x.s)).addTo(topL);
+  });
+  if(fit&&list.length){
+    const pts=[[here.lat,here.lng],...list.slice(0,5).map(x=>[x.s.lat,x.s.lng])];
+    map.fitBounds(pts,{padding:[30,30],maxZoom:15});
+  }
+  postH();
+}
+$("list").addEventListener("click",e=>{
+  const li=e.target.closest(".st"); if(!li) return;
+  if(e.target.closest("[data-more]")){ li.classList.toggle("open-more"); postH(); return; }
+  if(e.target.closest("a")) return;
+  const s=S.find(x=>x.id===li.dataset.id); map.setView([s.lat,s.lng],15);
+  topL.eachLayer(m=>{const ll=m.getLatLng(); if(ll.lat===s.lat&&ll.lng===s.lng) m.openPopup();});
+  if(innerWidth<900) $("mapbox").scrollIntoView({behavior:"smooth",block:"center"});
+});
+$("moreBtn").onclick=()=>{shown+=STEP;render()};
+
+/* ---------- 定位 ---------- */
+function locate(auto){
+  if(!navigator.geolocation){ if(!auto) msg("這支手機的瀏覽器不能定位，直接在上面輸入鄉鎮或地址就可以了。"); return; }
+  const b=$("gps"); b.disabled=true; b.lastChild.textContent="定位中…"; msg("");
+  navigator.geolocation.getCurrentPosition(p=>{
+    b.disabled=false; b.lastChild.textContent="重新定位";
+    setHere({lat:p.coords.latitude,lng:p.coords.longitude},"你現在的位置",true);
+    store.set("geoOk",true);
+  },err=>{
+    b.disabled=false; b.lastChild.textContent="用我現在的位置找";
+    if(auto) return;
+    msg(err.code===1
+      ?(EMBED?"文章裡的小工具拿不到定位權限，直接輸入鄉鎮或地址就可以了；或是點「開啟 App 版」再定位一次。":"定位被關掉了。可以到手機設定打開這個網頁的位置權限，或直接在上面輸入鄉鎮、地址。")
+      :"這次沒抓到位置，可能是訊號不好，再按一次試試看，或直接輸入鄉鎮、地址。");
+  },{enableHighAccuracy:false,timeout:12000,maximumAge:60000});
+}
+$("gps").onclick=()=>locate(false);
+
+/* ---------- 搜尋：鄉鎮、地址、站名都在頁面裡比對，不連外部服務 ---------- */
+let sugItems=[],sugIdx=-1;
+const base=t=>t.length>2?t.replace(/[鄉鎮市區]$/,""):t;
+const CB=c=>c.replace(/[縣市]$/,"");
+function search(raw){
+  const q=N(raw); if(!q) return [];
+  const out=[];
+  // 1. 有寫縣市的：新竹縣新埔鎮… / 新竹新埔
+  const cty=[...new Set(T.map(t=>t.c))].filter(c=>q.includes(c)||q.startsWith(CB(c)));
+  const pool=cty.length?T.filter(t=>cty.includes(t.c)):T;
+  const rest=cty.length?q.replace(new RegExp("^("+cty.map(c=>c+"|"+CB(c)).join("|")+")"),""):q;
+  const road=/^[路街道巷弄]/;
+  for(const t of pool){
+    const b=base(t.t);
+    const hit=q.includes(t.t)||rest.includes(t.t)
+      ||(b.length>=2&&[rest,q].some(x=>x.startsWith(b)&&!road.test(x.slice(b.length))))
+      ||(rest.length>=2&&t.t.startsWith(rest));
+    if(hit) out.push({type:"town",label:t.c+t.t,sub:"這一區",lat:t.lat,lng:t.lng,town:t,full:q,
+                      w:(b===rest||b===q||t.t===q)?0:1});
+  }
+  // 2. 只打縣市：縣市裡每一區都列出來，跟縣市同名的那一區（宜蘭市、花蓮市）排最前面
+  if(!out.length&&cty.length&&!rest){
+    for(const c of cty){ const ts=T.filter(t=>t.c===c);
+      out.push({type:"town",label:c,sub:"整個縣市",lat:ts.reduce((a,t)=>a+t.lat,0)/ts.length,
+                lng:ts.reduce((a,t)=>a+t.lng,0)/ts.length,town:ts[0],full:q,w:-1}); }
+    for(const c of cty) T.filter(t=>t.c===c).forEach(t=>out.push({type:"town",label:t.c+t.t,sub:"這一區",
+      lat:t.lat,lng:t.lng,town:t,full:q,w:base(t.t)===CB(c)?0:1}));
+  }
+  out.sort((a,b)=>a.w-b.w);
+  // 3. 站名、地址
+  const qs=q.replace(/站$/,"");
+  if(qs.length>=2) for(const s of S){
+    if((s.n.replace(/站$/,"")).includes(qs)||(s.c+s.t+s.a).includes(q)||(s.t+s.a).includes(q))
+      out.push({type:"st",label:"中油"+s.n,sub:s.c+s.t,lat:s.lat,lng:s.lng,st:s});
+  }
+  return out.slice(0,12);
+}
+function drawSug(){
+  const u=$("sug");
+  if(!sugItems.length){u.style.display="none";u.innerHTML="";postH();return;}
+  u.innerHTML=sugItems.map((x,i)=>`<li role="option" data-i="${i}" aria-selected="${i===sugIdx}">${esc(x.label)}<span>${esc(x.sub)}</span></li>`).join("");
+  u.style.display="block"; postH();
+}
+$("q").addEventListener("input",()=>{sugItems=search($("q").value);sugIdx=-1;drawSug();msg("")});
+$("q").addEventListener("keydown",e=>{
+  if(e.key==="ArrowDown"){sugIdx=Math.min(sugIdx+1,sugItems.length-1);drawSug();e.preventDefault();}
+  else if(e.key==="ArrowUp"){sugIdx=Math.max(sugIdx-1,0);drawSug();e.preventDefault();}
+  else if(e.key==="Enter"){e.preventDefault();go();}
+});
+$("qgo").onclick=()=>go();
+$("sug").addEventListener("click",e=>{const li=e.target.closest("li");if(li) pick(sugItems[+li.dataset.i]);});
+function go(){
+  const v=$("q").value.trim(); if(!v) return;
+  const r=sugItems.length?sugItems:search(v);
+  if(!r.length){ msg(`找不到「${v}」。可以換成鄉鎮的名字試試看，例如「新埔」或「新竹縣新埔鎮」。`); return; }
+  pick(r[Math.max(sugIdx,0)]);
+}
+async function pick(x){
+  sugItems=[];drawSug();$("q").blur();
+  if(x.type==="st"){ setHere({lat:x.lat,lng:x.lng},x.label+" 附近",true); return; }
+  setHere({lat:x.lat,lng:x.lng},x.label,false);
+  // 有寫到路名門牌，就試著把位置定得更準一點；查不到就維持鄉鎮中心
+  if(/[路街道巷弄號段]/.test(x.full||"")){
+    const r=await geocode(x.full,x.town);
+    if(r) setHere(r.p,r.label,r.road?"road":true);
+  }
+}
+async function geocode(q,t){
+  // OpenStreetMap 在台灣多半查不到門牌，查不到就退一步用路名（取到第一個 路／街／大道 為止）
+  const road=(q.match(/^.*?(大道|[路街])/)||[])[0];
+  for(const [qq,isRoad] of [[q,false],[road,true]]){
+    if(!qq||(isRoad&&qq===q)) continue;
+    try{
+      const ctl=new AbortController(); setTimeout(()=>ctl.abort(),5000);
+      const r=await fetch("https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=tw&accept-language=zh-TW&q="+encodeURIComponent(qq),{signal:ctl.signal});
+      const j=await r.json(); if(!j[0]) continue;
+      const p={lat:+j[0].lat,lng:+j[0].lon};
+      if(km(p,t)<20) return {p,road:isRoad,label:qq};   // 跑到別的鄉鎮去就不採用
+    }catch(e){}
+  }
+  return null;
+}
+
+/* ---------- 全部列表 ---------- */
+function drawAll(){
+  const by={};
+  for(const s of S){(by[s.c]=by[s.c]||{})[s.t]=(by[s.c][s.t]||[]).concat(s);}
+  $("allList").innerHTML=Object.entries(by).map(([c,ts])=>{
+    const n=Object.values(ts).reduce((a,b)=>a+b.length,0);
+    return `<details><summary>${c}<span>${n} 間</span></summary>${Object.entries(ts).map(([t,ss])=>
+      `<div class="town"><h4>${t}</h4>${ss.map(s=>`<div class="row"><div>中油${esc(s.n)}<div class="x">${esc(s.a)}・${esc(s.h)}${s.open?"":"・官方標示沒有營業"}</div></div><a href="${mapUrl(s)}" target="_blank" rel="noopener">地圖</a></div>`).join("")}</div>`).join("")}</details>`;
+  }).join("");
+}
+$("allList").addEventListener("toggle",postH,true);
+
+/* ---------- 加到主畫面 ---------- */
+let deferred=null;
+addEventListener("beforeinstallprompt",e=>{e.preventDefault();deferred=e;if(!EMBED) $("install").style.display="block";});
+$("install").onclick=async()=>{
+  if(deferred){deferred.prompt();await deferred.userChoice;deferred=null;$("install").style.display="none";}
+  else $("ios").style.display="block";
+};
+$("ios").querySelector("button").onclick=()=>{$("ios").style.display="none";store.set("iosHide",true)};
+const IOS=/iphone|ipad|ipod/i.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);
+if(!EMBED&&!STANDALONE&&IOS){ $("install").style.display="block"; if(!store.get("iosHide",false)) setTimeout(()=>$("ios").style.display="block",2500); }
+if(EMBED){ $("embedBar").style.display="block"; $("openFull").href=location.href.split("?")[0]; }
+
+/* ---------- 文章 iframe 自動調高度 ---------- */
+let lastH=0;
+function postH(){ if(!EMBED) return; const h=document.documentElement.scrollHeight;
+  if(Math.abs(h-lastH)>4){lastH=h;parent.postMessage({type:"cpc-station-height",h},"*");} }
+if(EMBED&&"ResizeObserver" in window) new ResizeObserver(postH).observe(document.body);
+
+/* ---------- 啟動 ---------- */
+Promise.all([fetch("stations.json").then(r=>r.json()),fetch("towns.json").then(r=>r.json())]).then(([d,t])=>{
+  S=d.stations; T=t; $("upd").textContent=d.updated;
+  drawChips(); drawDots(); drawAll();
+  const qp=new URLSearchParams(location.search).get("q");
+  if(qp){ $("q").value=qp; const r=search(qp); if(r[0]) pick(r[0]); }
+  else if(navigator.permissions&&!EMBED){
+    navigator.permissions.query({name:"geolocation"}).then(p=>{ if(p.state==="granted") locate(true); }).catch(()=>{});
+  }else if(store.get("geoOk",false)&&STANDALONE) locate(true);
+  postH();
+}).catch(()=>msg("資料載入失敗，可能是網路斷了，重新整理一次試試看。"));
+setInterval(()=>{ if(S.length){ drawDots(); if(here) render(); } },5*60*1000);  // 營業狀態每 5 分鐘重算
+
+if("serviceWorker" in navigator&&location.protocol==="https:") navigator.serviceWorker.register("sw.js").catch(()=>{});
+</script>
+</body>
+</html>
