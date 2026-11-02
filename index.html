@@ -57,6 +57,11 @@ header h1 small{display:block;font-size:.74rem;font-weight:400;opacity:.85}
 #sug li span{color:var(--muted);font-size:.85rem;white-space:nowrap}
 .hint{font-size:.82rem;color:var(--muted);margin:8px 2px 0}
 #msg{display:none;margin-top:10px;padding:10px 12px;border-radius:10px;background:var(--warn-bg);color:var(--warn);font-size:.9rem}
+.scope{display:flex;background:var(--off-bg);border-radius:12px;padding:4px;margin:14px 0 0;gap:4px}
+.scope button{flex:1;border:0;background:none;border-radius:9px;padding:9px 6px;font-size:.92rem;cursor:pointer;color:var(--muted)}
+.scope button[aria-pressed="true"]{background:#fff;color:var(--brand-dk);font-weight:700;box-shadow:0 1px 3px #0002}
+.tag.kd{background:var(--brand);color:#fff;font-weight:700}
+.tag.kf{background:#e3e8ef;color:#44546a;font-weight:700}
 .chips{display:flex;flex-wrap:wrap;gap:7px;margin:12px 0 0}
 .chip{border:1.5px solid var(--line);background:#fff;border-radius:999px;padding:6px 12px;font-size:.88rem;cursor:pointer;display:flex;align-items:center;gap:5px}
 .chip[aria-pressed="true"]{border-color:var(--brand);background:var(--brand-bg);color:var(--brand-dk);font-weight:700}
@@ -157,6 +162,10 @@ footer p{margin:4px 0}
       <ul id="sug" role="listbox"></ul>
       <p class="hint">也可以按地圖下方的「在地圖上點位置」，直接點你要去的地方。</p>
       <div id="msg" role="status"></div>
+      <div class="scope" id="scope" role="group" aria-label="要查哪些加油站">
+        <button type="button" data-s="d" aria-pressed="true">只看直營站</button>
+        <button type="button" data-s="all" aria-pressed="false">全部中油站</button>
+      </div>
       <div class="chips" id="chips"></div>
       <div class="embed-bar" id="embedBar">
         想加到手機主畫面的話，<a id="openFull" href="./" target="_blank" rel="noopener">點這裡開啟 App 版</a>，再照畫面提示加入就可以了。
@@ -206,7 +215,20 @@ const store={get(k,d){try{const v=localStorage.getItem("cpc-"+k);return v==null?
 if(EMBED) document.body.classList.add("embedded");
 
 const STEP=EMBED?5:10;
-let S=[],T=[],here=null,shown=STEP,picking=false;
+let ALL=[],S=[],T=[],here=null,shown=STEP,picking=false;
+let scope=new URLSearchParams(location.search).get("all")==="1"?"all":store.get("scope","d");
+const nm=s=>s.k==="d"?"中油"+s.n:(/站$/.test(s.n)?s.n:s.n+"加油站");
+const kindTag=s=>scope==="all"?`<span class="tag ${s.k==="d"?"kd":"kf"}">${s.k==="d"?"直營":"加盟"}</span>`:"";
+function norm(s){ s.open=!s.off; s.f=s.f||[]; s.pay=s.pay||[]; s.tel=s.tel||""; s.k=s.k||"d"; return s; }
+function applyScope(){
+  S=scope==="all"?ALL:ALL.filter(s=>s.k==="d");
+  document.querySelectorAll("#scope button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.s===scope));
+}
+$("scope").addEventListener("click",e=>{
+  const b=e.target.closest("button"); if(!b||b.dataset.s===scope) return;
+  scope=b.dataset.s; store.set("scope",scope); shown=STEP; applyScope(); drawDots(); render();
+  if($("q").value.trim()){ sugItems=search($("q").value); drawSug(); }
+});
 
 /* ---------- 篩選 ---------- */
 const FILTERS=[
@@ -259,7 +281,7 @@ const mapUrl=s=>`https://www.google.com/maps/search/?api=1&query=${s.lat},${s.ln
 const esc=t=>String(t).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 
 /* ---------- 地圖 ---------- */
-const map=L.map("map",{zoomControl:true,attributionControl:true,scrollWheelZoom:!EMBED,
+const map=L.map("map",{preferCanvas:true,zoomControl:true,attributionControl:true,scrollWheelZoom:!EMBED,
   dragging:!(EMBED&&L.Browser.mobile),tap:false}).setView([23.7,120.95],7);
 L.tileLayer("https://wmts.nlsc.gov.tw/wmts/EMAP6_OPENDATA/default/GoogleMapsCompatible/{z}/{y}/{x}",
   {maxZoom:15,attribution:"國土測繪中心"}).addTo(map);
@@ -270,14 +292,14 @@ const dots=L.layerGroup().addTo(map), topL=L.layerGroup().addTo(map);
 let youMk=null;
 function popup(s){
   const st=openState(s);
-  return `<b>中油${esc(s.n)}</b><br>${esc(s.c+s.t+s.a)}<br><span style="color:${st.open?"#2e7d4f":"#9a3b2c"}">${st.txt}</span><br>
+  return `<b>${esc(nm(s))}</b>${scope==="all"?(s.k==="d"?"・直營":"・加盟"):""}<br>${esc(s.c+s.t+s.a)}<br><span style="color:${st.open?"#2e7d4f":"#9a3b2c"}">${st.txt}</span><br>
   <a href="${navUrl(s)}" target="_blank" rel="noopener">Google 導航</a>${s.tel?`　<a href="tel:${s.tel.replace(/[^\d]/g,"")}">打電話</a>`:""}`;
 }
 function drawDots(){
   dots.clearLayers();
   for(const s of S){
     const o=openState(s).open;
-    L.circleMarker([s.lat,s.lng],{radius:5,weight:1.5,color:"#fff",fillColor:o?"#2f6f77":"#9aa4a6",fillOpacity:.95})
+    L.circleMarker([s.lat,s.lng],{weight:1.5,color:"#fff",fillColor:!o?"#b8bfc1":(s.k==="d"?"#2f6f77":"#7f97b2"),radius:s.k==="d"?5:4,fillOpacity:.95})
       .bindPopup(()=>popup(s)).addTo(dots);
   }
 }
@@ -307,9 +329,9 @@ function card(s,i){
   const extra=[s.self?"刷卡自助":"",s.hw?"國道":"",s.wash?"洗車："+s.wash:""].filter(Boolean).map(t=>`<span class="tag">${esc(t)}</span>`).join("");
   return `<li class="card st ${st.open?"":"closed"}" data-id="${s.id}">
     <div class="top"><span class="rank">${i+1}</span>
-      <div><h3>中油${esc(s.n)}</h3><div class="addr">${esc(s.c+s.t+s.a)}</div></div>
+      <div><h3>${esc(nm(s))}</h3><div class="addr">${esc(s.c+s.t+s.a)}</div></div>
       <div class="dist">${fmtKm(d)}<small>直線距離</small></div></div>
-    <div class="tags"><span class="tag ${st.cls}">${st.txt}</span>${fuel}${extra}</div>
+    <div class="tags">${kindTag(s)}<span class="tag ${st.cls}">${st.txt}</span>${fuel}${extra}</div>
     <div class="acts">
       <a class="go" href="${navUrl(s)}" target="_blank" rel="noopener"><svg class="i"><use href="#i-nav"/></svg>導航</a>
       ${s.tel?`<a class="ghost" href="tel:${s.tel.replace(/[^\d]/g,"")}"><svg class="i"><use href="#i-tel"/></svg>電話</a>`:""}
@@ -332,7 +354,7 @@ function render(fit){
   const ok=all.filter(x=>act.every(f=>f.fn(x.s)));
   const list=ok.slice(0,shown);
   $("where").style.display="block";
-  $("where").innerHTML=`從 <b>${esc(here.label)}</b>${here.precise==="road"?"（照路名估算，門牌查不到）":here.precise?"":"（以這一區的中心估算）"}出發，照直線距離由近到遠排。<a class="tomap" href="#mapbox">看地圖</a>`;
+  $("where").innerHTML=`從 <b>${esc(here.label)}</b>${here.precise==="road"?"（照路名估算，門牌查不到）":here.precise?"":"（以這一區的中心估算）"}出發，照直線距離由近到遠排${scope==="all"?"，直營、加盟都列出來":"，只列直營站"}。<a class="tomap" href="#mapbox">看地圖</a>`;
   if(!list.length){
     $("list").innerHTML=`<li class="card empty"><b>附近沒有符合條件的直營站</b>可以把上面的條件取消一兩個，範圍就會變大。</li>`;
   }else{
@@ -414,7 +436,7 @@ function search(raw){
   const qs=q.replace(/站$/,"");
   if(qs.length>=2) for(const s of S){
     if((s.n.replace(/站$/,"")).includes(qs)||(s.c+s.t+s.a).includes(q)||(s.t+s.a).includes(q))
-      out.push({type:"st",label:"中油"+s.n,sub:s.c+s.t,lat:s.lat,lng:s.lng,st:s});
+      out.push({type:"st",label:nm(s),sub:s.c+s.t+(scope==="all"?(s.k==="d"?"・直營":"・加盟"):""),lat:s.lat,lng:s.lng,st:s});
   }
   return out.slice(0,12);
 }
@@ -467,7 +489,7 @@ async function geocode(q,t){
 /* ---------- 全部列表 ---------- */
 function drawAll(){
   const by={};
-  for(const s of S){(by[s.c]=by[s.c]||{})[s.t]=(by[s.c][s.t]||[]).concat(s);}
+  for(const s of ALL.filter(x=>x.k==="d")){(by[s.c]=by[s.c]||{})[s.t]=(by[s.c][s.t]||[]).concat(s);}
   $("allList").innerHTML=Object.entries(by).map(([c,ts])=>{
     const n=Object.values(ts).reduce((a,b)=>a+b.length,0);
     return `<details><summary>${c}<span>${n} 間</span></summary>${Object.entries(ts).map(([t,ss])=>
@@ -496,7 +518,7 @@ if(EMBED&&"ResizeObserver" in window) new ResizeObserver(postH).observe(document
 
 /* ---------- 啟動 ---------- */
 Promise.all([fetch("stations.json").then(r=>r.json()),fetch("towns.json").then(r=>r.json())]).then(([d,t])=>{
-  S=d.stations; T=t; $("upd").textContent=d.updated;
+  ALL=d.stations.map(norm); T=t; $("upd").textContent=d.updated; applyScope();
   drawChips(); drawDots(); drawAll();
   const qp=new URLSearchParams(location.search).get("q");
   if(qp){ $("q").value=qp; const r=search(qp); if(r[0]) pick(r[0]); }
