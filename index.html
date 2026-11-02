@@ -120,9 +120,10 @@ footer p{margin:4px 0}
 .embed-bar{display:none;background:var(--brand-bg);border:1px solid #c9dfe0;border-radius:12px;padding:10px 12px;font-size:.9rem;margin-top:12px}
 .embed-bar a{font-weight:700}
 .you{width:16px;height:16px;border-radius:50%;background:#1a73e8;border:3px solid #fff;box-shadow:0 0 0 2px #1a73e855}
-.pin{width:28px;height:28px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);background:var(--brand);border:2px solid #fff;box-shadow:0 2px 6px #0004;display:grid;place-items:center}
-.pin b{transform:rotate(45deg);color:#fff;font-size:.8rem}
-.pin.closed{background:var(--off)}
+.pin{border-radius:50% 50% 50% 0;transform:rotate(-45deg);background:#d93025;border:3px solid #fff;box-shadow:0 3px 8px rgba(0,0,0,.55);display:grid;place-items:center;box-sizing:border-box}
+.pin b{transform:rotate(45deg);color:#fff;font-size:15px;font-weight:800;line-height:1}
+.pin.first b{font-size:18px}
+.pin.closed{background:#5f6b6d}
 .leaflet-popup-content{font:14px/1.5 -apple-system,"PingFang TC","Noto Sans TC",sans-serif;margin:10px 12px}
 .leaflet-popup-content b{font-size:15px}
 .embedded header,.embedded #all{display:none}
@@ -299,7 +300,7 @@ function drawDots(){
   dots.clearLayers();
   for(const s of S){
     const o=openState(s).open;
-    L.circleMarker([s.lat,s.lng],{weight:1.5,color:"#fff",fillColor:!o?"#b8bfc1":(s.k==="d"?"#2f6f77":"#7f97b2"),radius:s.k==="d"?5:4,fillOpacity:.95})
+    L.circleMarker([s.lat,s.lng],{weight:2,color:"#fff",fillColor:!o?"#b8bfc1":(s.k==="d"?"#2f6f77":"#7f97b2"),radius:s.k==="d"?6:5,fillOpacity:1})
       .bindPopup(()=>popup(s)).addTo(dots);
   }
 }
@@ -366,7 +367,7 @@ function render(fit){
   topL.clearLayers();
   list.forEach((x,i)=>{
     const o=openState(x.s).open;
-    L.marker([x.s.lat,x.s.lng],{icon:L.divIcon({className:"",html:`<div class="pin ${o?"":"closed"}"><b>${i+1}</b></div>`,iconSize:[28,28],iconAnchor:[14,28],popupAnchor:[0,-26]}),zIndexOffset:500})
+    ((P)=>L.marker([x.s.lat,x.s.lng],{icon:L.divIcon({className:"",html:`<div class="pin ${o?"":"closed"} ${i===0?"first":""}" style="width:${P}px;height:${P}px"><b>${i+1}</b></div>`,iconSize:[P,P],iconAnchor:[P/2,Math.round(P/2+P/Math.SQRT2)],popupAnchor:[0,-Math.round(P/2+P/Math.SQRT2)]}),zIndexOffset:i===0?800:500-i}))(i===0?42:34)
       .bindPopup(()=>popup(x.s)).addTo(topL);
   });
   if(fit&&list.length){
