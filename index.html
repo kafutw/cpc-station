@@ -130,6 +130,16 @@ footer p{margin:4px 0}
 .embedded #map{height:420px!important;min-height:0;max-height:none}
 @media(min-width:900px){.embedded #map{height:640px!important}}
 .embedded footer p:not(:first-child){display:none}
+/* 贊助（只在完整版顯示，有連結才出現） */
+#sponsor{display:none;margin-top:18px;padding:16px;text-align:center}
+#sponsor h2{font-size:1.05rem;margin:0 0 6px}
+#sponsor p{font-size:.9rem;color:var(--muted);margin:0 0 12px;line-height:1.6}
+#sponsor .btns{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+#sponsor .btns a{flex:1 1 0;min-width:88px;max-width:140px;background:#2e7d32;color:#fff;font-weight:700;border-radius:12px;padding:11px 8px;text-decoration:none}
+#sponsor small{display:block;font-size:.78rem;color:var(--muted);margin-top:10px}
+.embedded #sponsor{display:none!important}
+#fbBar{font-size:.86rem;color:var(--muted);text-align:center;margin:14px 0 0}
+#fbBar a{font-weight:700}
 </style>
 </head>
 <body>
@@ -191,6 +201,13 @@ footer p{margin:4px 0}
   <section id="all">
     <h2>全台中油直營站列表</h2>
     <div id="allList"></div>
+  </section>
+  <p id="fbBar">小工具用起來怪怪的、定位抓不到？<a id="fbLink" href="#" target="_blank" rel="noopener">跟我們說</a>，我們會儘快修正喔。</p>
+  <section id="sponsor" class="card" aria-label="贊助">
+    <h2>覺得好用的話，可以贊助我們</h2>
+    <p>中油直營快找是我們自己整理製作的，如果它幫你找到過加油站，<br>小額贊助就能讓這個小工具繼續更新下去喔！</p>
+    <div class="btns" id="sponsorBtns"></div>
+    <small>付款頁由綠界科技處理，我們不會拿到你的卡號。</small>
   </section>
   <footer>
     <p>資料來源：<a href="https://data.gov.tw/dataset/6065" target="_blank" rel="noopener">台灣中油公司加油站服務資訊</a>（政府資料開放平臺，依政府資料開放授權條款第 1 版使用），資料更新日 <span id="upd"></span>。</p>
@@ -279,6 +296,18 @@ function km(a,b){
 const fmtKm=d=>d<1?`${Math.round(d*1000/10)*10} 公尺`:`${d<10?d.toFixed(1):Math.round(d)} 公里`;
 const navUrl=s=>`https://www.google.com/maps/dir/?api=1&destination=${s.lat},${s.lng}&travelmode=driving`;
 const mapUrl=s=>`https://www.google.com/maps/search/?api=1&query=${s.lat},${s.lng}`;
+/* 問題回報：Google 表單預先帶入站名與裝置 */
+const FORM="https://docs.google.com/forms/d/18E86-IuVmHE4QMBssJaP71RFRidT5oybuvoo_RuFm-o/viewform?usp=pp_url";
+function devInfo(){
+  const u=navigator.userAgent, m=(re)=>(u.match(re)||[])[1];
+  const os=/iPhone|iPad|iPod/.test(u)?(/iPad/.test(u)?"iPad":"iPhone")+" iOS "+(m(/OS (\d+[_\d]*)/)||"").replace(/_/g,"."):
+    /Android/.test(u)?"Android "+(m(/Android ([\d.]+)/)||""):/Macintosh/.test(u)?"Mac":/Windows/.test(u)?"Windows":"其他";
+  const br=/Line\//.test(u)?"LINE 內建瀏覽器":/FBAN|FBAV/.test(u)?"Facebook 內建瀏覽器":/Instagram/.test(u)?"IG 內建瀏覽器":
+    /Edg\//.test(u)?"Edge":/CriOS|Chrome\//.test(u)?"Chrome":/FxiOS|Firefox/.test(u)?"Firefox":/Safari/.test(u)?"Safari":"其他";
+  const mode=EMBED?"文章內嵌":STANDALONE?"主畫面":"完整版";
+  return `${os}／${br}／${mode}／寬 ${innerWidth}`;
+}
+const fbUrl=s=>FORM+(s?"&entry.908528530="+encodeURIComponent(nm(s)+"（"+s.id+"）"):"")+"&entry.50406390="+encodeURIComponent(devInfo());
 const esc=t=>String(t).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 
 /* ---------- 地圖 ---------- */
@@ -294,7 +323,8 @@ let youMk=null;
 function popup(s){
   const st=openState(s);
   return `<b>${esc(nm(s))}</b>${scope==="all"?(s.k==="d"?"・直營":"・加盟"):""}<br>${esc(s.c+s.t+s.a)}<br><span style="color:${st.open?"#2e7d4f":"#9a3b2c"}">${st.txt}</span><br>
-  <a href="${navUrl(s)}" target="_blank" rel="noopener">Google 導航</a>${s.tel?`　<a href="tel:${s.tel.replace(/[^\d]/g,"")}">打電話</a>`:""}`;
+  <a href="${navUrl(s)}" target="_blank" rel="noopener">Google 導航</a>${s.tel?`　<a href="tel:${s.tel.replace(/[^\d]/g,"")}">打電話</a>`:""}<br>
+  <a href="${fbUrl(s)}" target="_blank" rel="noopener" style="font-size:12.5px;color:#5d6d70">這站資料有錯？回報給我們</a>`;
 }
 function drawDots(){
   dots.clearLayers();
@@ -346,6 +376,7 @@ function card(s,i){
       ${s.etag?`<div>eTag 申裝儲值：${esc(s.etag)}</div>`:""}
       ${s.mt?`<div>保養間：${esc(s.mt)}</div>`:""}
       <div>座標：${s.lat}, ${s.lng}　<a href="${mapUrl(s)}" target="_blank" rel="noopener">在 Google 地圖看</a></div>
+      <div><a href="${fbUrl(s)}" target="_blank" rel="noopener">這站資料有錯？回報給我們</a></div>
     </div></li>`;
 }
 function render(fit){
@@ -509,6 +540,14 @@ $("install").onclick=async()=>{
 $("ios").querySelector("button").onclick=()=>{$("ios").style.display="none";store.set("iosHide",true)};
 const IOS=/iphone|ipad|ipod/i.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);
 if(!EMBED&&!STANDALONE&&IOS){ $("install").style.display="block"; if(!store.get("iosHide",false)) setTimeout(()=>$("ios").style.display="block",2500); }
+$("fbLink").href=fbUrl(null);
+$("fbLink").addEventListener("click",e=>{e.currentTarget.href=fbUrl(null)});
+// 贊助連結：綠界收款連結建好後填進 url，全部空白就不顯示
+const SPONSOR=[{amt:100,url:""},{amt:200,url:""},{amt:500,url:""}];
+if(!EMBED&&SPONSOR.some(x=>x.url)){
+  $("sponsorBtns").innerHTML=SPONSOR.filter(x=>x.url).map(x=>`<a href="${x.url}" target="_blank" rel="noopener">${x.amt} 元</a>`).join("");
+  $("sponsor").style.display="block";
+}
 if(EMBED){ $("embedBar").style.display="block"; $("openFull").href=location.href.split("?")[0]; }
 
 /* ---------- 文章 iframe 自動調高度 ---------- */
