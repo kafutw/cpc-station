@@ -1,5 +1,5 @@
 // 中油直營站快找：App 本體先用快取（打開快），站點資料背景更新；地圖圖磚不快取
-const V = 'cpc-v5';
+const V = 'cpc-v6';
 const SHELL = ['./', 'index.html', 'stations.json', 'towns.json', 'manifest.webmanifest', 'icon-192.png',
   'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js',
   'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css'];

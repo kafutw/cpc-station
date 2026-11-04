@@ -560,8 +560,9 @@ if(EMBED&&"ResizeObserver" in window) new ResizeObserver(postH).observe(document
 Promise.all([fetch("stations.json").then(r=>r.json()),fetch("towns.json").then(r=>r.json())]).then(([d,t])=>{
   ALL=d.stations.map(norm); T=t; $("upd").textContent=d.updated; applyScope();
   drawChips(); drawDots(); drawAll();
-  const qp=new URLSearchParams(location.search).get("q");
+  const sp=new URLSearchParams(location.search), qp=sp.get("q");
   if(qp){ $("q").value=qp; const r=search(qp); if(r[0]) pick(r[0]); }
+  else if(sp.get("locate")==="1"&&!EMBED) locate(false);  // 從文章「用定位找」按鈕點進來
   else if(navigator.permissions&&!EMBED){
     navigator.permissions.query({name:"geolocation"}).then(p=>{ if(p.state==="granted") locate(true); }).catch(()=>{});
   }else if(store.get("geoOk",false)&&STANDALONE) locate(true);
